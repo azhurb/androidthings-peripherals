@@ -2,6 +2,9 @@ package com.example.alex.androidthingsperipherals;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
+
+import com.google.android.things.pio.PeripheralManager;
 
 /**
  * Skeleton of an Android Things activity.
@@ -23,9 +26,13 @@ import android.os.Bundle;
  * @see <a href="https://github.com/androidthings/contrib-drivers#readme">https://github.com/androidthings/contrib-drivers#readme</a>
  */
 public class HomeActivity extends Activity {
+    private static final String TAG = "HomeActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        PeripheralManager pioManager = PeripheralManager.getInstance();
+        Log.d(TAG, "Available GPIO: " + pioManager.getGpioList());
     }
 }
