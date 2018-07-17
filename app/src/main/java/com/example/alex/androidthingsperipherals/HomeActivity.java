@@ -32,9 +32,12 @@ import java.io.IOException;
 public class HomeActivity extends Activity {
     private static final String TAG = "HomeActivity";
     private static final String BUTTON_PIN_NAME = "GPIO6_IO14";
+    private static final String LED_PIN_NAME = "GPIO2_IO02";
 
     // GPIO connection to button input
     private Gpio mButtonGpio;
+    // GPIO connection to LED output
+    private Gpio mLedGpio;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +57,10 @@ public class HomeActivity extends Activity {
             mButtonGpio.setActiveType(Gpio.ACTIVE_LOW);
             // Register the event callback.
             mButtonGpio.registerGpioCallback(mCallback);
+
+            mLedGpio = pioManager.openGpio(LED_PIN_NAME);
+            // Configure as an output.
+            mLedGpio.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
         } catch (IOException e) {
             Log.w(TAG, "Error opening GPIO", e);
         }
@@ -72,13 +79,23 @@ public class HomeActivity extends Activity {
                 Log.w(TAG, "Error closing GPIO", e);
             }
         }
+
+        // Close the LED.
+        if (mLedGpio != null) {
+            try {
+                mLedGpio.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing GPIO", e);
+            }
+        }
     }
 
     private GpioCallback mCallback = new GpioCallback() {
         @Override
         public boolean onGpioEdge(Gpio gpio) {
             try {
-                Log.i(TAG, "GPIO changed, button " + gpio.getValue());
+                boolean buttonValue = gpio.getValue();
+                mLedGpio.setValue(buttonValue);
             } catch (IOException e) {
                 Log.w(TAG, "Error reading GPIO");
             }
