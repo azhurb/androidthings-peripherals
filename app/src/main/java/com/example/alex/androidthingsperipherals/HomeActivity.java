@@ -3,9 +3,11 @@ package com.example.alex.androidthingsperipherals;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 
+import com.google.android.things.contrib.driver.button.Button;
+import com.google.android.things.contrib.driver.button.ButtonInputDriver;
 import com.google.android.things.pio.Gpio;
-import com.google.android.things.pio.GpioCallback;
 import com.google.android.things.pio.PeripheralManager;
 
 import java.io.IOException;
@@ -34,8 +36,8 @@ public class HomeActivity extends Activity {
     private static final String BUTTON_PIN_NAME = "GPIO6_IO14";
     private static final String LED_PIN_NAME = "GPIO2_IO02";
 
-    // GPIO connection to button input
-    private Gpio mButtonGpio;
+    // Driver for the GPIO button
+    private ButtonInputDriver mButtonInputDriver;
     // GPIO connection to LED output
     private Gpio mLedGpio;
 
@@ -47,16 +49,14 @@ public class HomeActivity extends Activity {
         Log.d(TAG, "Available GPIO: " + pioManager.getGpioList());
 
         try {
-            // Create GPIO connection.
-            mButtonGpio = pioManager.openGpio(BUTTON_PIN_NAME);
+            // Initialize button driver to emit SPACE key events
+            mButtonInputDriver = new ButtonInputDriver(
+                    BUTTON_PIN_NAME,
+                    Button.LogicState.PRESSED_WHEN_LOW,
+                    KeyEvent.KEYCODE_SPACE);
 
-            // Configure as an input, trigger events on every change.
-            mButtonGpio.setDirection(Gpio.DIRECTION_IN);
-            mButtonGpio.setEdgeTriggerType(Gpio.EDGE_BOTH);
-            // Value is true when the pin is LOW
-            mButtonGpio.setActiveType(Gpio.ACTIVE_LOW);
-            // Register the event callback.
-            mButtonGpio.registerGpioCallback(mCallback);
+            // Register with the framework
+            mButtonInputDriver.register();
 
             mLedGpio = pioManager.openGpio(LED_PIN_NAME);
             // Configure as an output.
@@ -70,13 +70,13 @@ public class HomeActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
 
-        // Close the button
-        if (mButtonGpio != null) {
-            mButtonGpio.unregisterGpioCallback(mCallback);
+        // Unregister the driver and close
+        if (mButtonInputDriver != null) {
+            mButtonInputDriver.unregister();
             try {
-                mButtonGpio.close();
+                mButtonInputDriver.close();
             } catch (IOException e) {
-                Log.w(TAG, "Error closing GPIO", e);
+                Log.e(TAG, "Error closing Button driver", e);
             }
         }
 
@@ -90,18 +90,36 @@ public class HomeActivity extends Activity {
         }
     }
 
-    private GpioCallback mCallback = new GpioCallback() {
-        @Override
-        public boolean onGpioEdge(Gpio gpio) {
-            try {
-                boolean buttonValue = gpio.getValue();
-                mLedGpio.setValue(buttonValue);
-            } catch (IOException e) {
-                Log.w(TAG, "Error reading GPIO");
-            }
-
-            // Return true to keep callback active.
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_SPACE) {
+            // Turn on the LED
+            setLedValue(true);
             return true;
         }
-    };
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_SPACE) {
+            // Turn off the LED
+            setLedValue(false);
+            return true;
+        }
+
+        return super.onKeyUp(keyCode, event);
+    }
+
+    /**
+     * Update the value of the LED output.
+     */
+    private void setLedValue(boolean value) {
+        try {
+            mLedGpio.setValue(value);
+        } catch (IOException e) {
+            Log.e(TAG, "Error updating GPIO value", e);
+        }
+    }
 }
